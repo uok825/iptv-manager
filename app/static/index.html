@@ -928,7 +928,7 @@ function renderChannels() {
     <div class="channel-item ${ch.enabled ? '' : 'disabled'}" data-id="${ch.id}">
       ${state.selectMode ? `<input type="checkbox" class="ch-select" data-id="${ch.id}"
         ${state.selected.has(ch.id) ? 'checked' : ''} onchange="onSelectChannel(${ch.id}, this.checked)">` : ''}
-      <input type="text" class="ch-position" value="${idx + 1}" data-id="${ch.id}"
+      <input type="text" class="ch-position" value="${ch.sort_order + 1}" data-id="${ch.id}"
         onkeydown="if(event.key==='Enter'){setPosition(${ch.id}, this.value); this.blur();}"
         onfocus="this.select()"
         title="Sıra numarası yaz ve Enter'a bas">
