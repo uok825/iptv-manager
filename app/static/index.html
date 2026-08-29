@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTV Playlist Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232733;
+  --border: #2d3142;
+  --text: #e4e6f0;
+  --text2: #8b8fa3;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00b894;
+  --red: #e17055;
+  --orange: #fdcb6e;
+  --radius: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Layout */
+.app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 280px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sidebar-header .playlist-url {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.playlist-url input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.playlist-url button {
+  padding: 6px 10px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.stats-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.stats-bar .stat-val { color: var(--text); font-weight: 600; }
+
+.nav-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text2);
+  border-bottom: 2px solid transparent;
+}
+
+.nav-tab.active {
+  color: var(--accent2);
+  border-bottom-color: var(--accent);
+}
+
+/* Group list */
+.group-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.group-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.group-item:hover { background: var(--surface2); }
+.group-item.active { background: var(--accent); color: white; }
+.group-item .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.group-item.active .count { background: rgba(255,255,255,0.2); color: white; }
+.group-item .drag-handle { cursor: grab; color: var(--text2); }
+
+/* Source list */
+.source-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.source-item {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.source-item .source-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.source-item .source-name { font-weight: 600; font-size: 14px; }
+
+.source-item .source-url {
+  font-size: 11px;
+  color: var(--text2);
+  word-break: break-all;
+}
+
+.source-item .source-synced {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.source-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
+
+.search-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  width: 250px;
+}
+
+.search-box::placeholder { color: var(--text2); }
+
+.channel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 20px;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  gap: 12px;
+  border: 1px solid var(--border);
+}
+
+.channel-item.disabled { opacity: 0.4; }
+.channel-item .drag-handle { cursor: grab; color: var(--text2); font-size: 16px; }
+
+.channel-item .ch-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--surface2);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.channel-item .ch-info { flex: 1; min-width: 0; }
+.channel-item .ch-name { font-size: 14px; font-weight: 500; }
+.channel-item .ch-meta {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-item .ch-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ch-status.alive { background: var(--green); }
+.ch-status.dead { background: var(--red); }
+.ch-status.unknown { background: var(--text2); }
+
+.channel-item .ch-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Buttons */
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.btn:hover { background: var(--border); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-danger { color: var(--red); }
+.btn-danger:hover { background: var(--red); color: white; }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+.btn-icon {
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 16px;
+}
+.btn-icon:hover { color: var(--text); }
+
+/* Checkbox */
+.toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.toggle input { display: none; }
+
+.toggle .slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.toggle .slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.toggle input:checked + .slider { background: var(--green); }
+.toggle input:checked + .slider::before { left: 18px; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.modal h3 { margin-bottom: 16px; font-size: 16px; }
+
+.modal .form-group {
+  margin-bottom: 12px;
+}
+
+.modal label {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+
+.modal input, .modal select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  animation: slideIn 0.3s ease;
+  min-width: 250px;
+}
+
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Select all bar */
+.select-bar {
+  padding: 8px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.select-bar .selected-count { color: var(--accent2); font-weight: 600; }
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text2);
+  font-size: 14px;
+  gap: 12px;
+}
+
+.empty-state .empty-icon { font-size: 48px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>IPTV Manager</h1>
+      <div class="playlist-url">
+        <input type="text" id="playlistUrl" readonly>
+        <button onclick="copyUrl()">Kopyala</button>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="statsBar">
+      <span><span class="stat-val" id="statEnabled">0</span> aktif</span>
+      <span><span class="stat-val" id="statAlive">0</span> canlı</span>
+      <span><span class="stat-val" id="statTotal">0</span> toplam</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="groups" onclick="switchTab('groups')">Gruplar</button>
+      <button class="nav-tab" data-tab="sources" onclick="switchTab('sources')">Kaynaklar</button>
+    </div>
+
+    <!-- Groups tab -->
+    <div id="groupsTab">
+      <div style="padding: 8px; display: flex; gap: 4px;">
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="showGroupModal()">+ Grup Ekle</button>
+        <button class="btn btn-sm" onclick="selectGroup(null)">Tümü</button>
+      </div>
+      <div class="group-list" id="groupList"></div>
+    </div>
+
+    <!-- Sources tab -->
+    <div id="sourcesTab" style="display:none">
+      <div style="padding: 8px;">
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="showSourceModal()">+ Kaynak Ekle</button>
+      </div>
+      <div class="source-list" id="sourceList"></div>
+      <div style="padding: 8px;">
+        <button class="btn btn-sm" style="width:100%" onclick="syncAll()">
+          Tümünü Senkronize Et
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="toolbar">
+      <h2 id="currentGroupName">Tüm Kanallar</h2>
+      <input type="text" class="search-box" placeholder="Kanal ara..." id="searchBox" oninput="onSearch()">
+      <button class="btn btn-sm" onclick="toggleSelectMode()">Seç</button>
+      <button class="btn btn-sm" onclick="checkStreams()">Canlılık Kontrol</button>
+      <button class="btn btn-primary btn-sm" onclick="syncAll()">Senkronize Et</button>
+    </div>
+
+    <div class="select-bar" id="selectBar" style="display:none">
+      <input type="checkbox" id="selectAll" onchange="onSelectAll()">
+      <span><span class="selected-count" id="selectedCount">0</span> seçili</span>
+      <button class="btn btn-sm" onclick="bulkEnable(true)">Aktif Et</button>
+      <button class="btn btn-sm" onclick="bulkEnable(false)">Pasif Et</button>
+      <select id="bulkMoveGroup" style="padding:4px 8px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius); font-size:12px;">
+        <option value="">Gruba Taşı...</option>
+      </select>
+      <button class="btn btn-sm" onclick="bulkMove()">Taşı</button>
+      <button class="btn btn-sm" onclick="toggleSelectMode()">İptal</button>
+    </div>
+
+    <div class="channel-list" id="channelList"></div>
+  </div>
+</div>
+
+<!-- Group Modal -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal">
+    <h3 id="groupModalTitle">Yeni Grup</h3>
+    <div class="form-group">
+      <label>Grup Adı</label>
+      <input type="text" id="groupNameInput" placeholder="Grup adı...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('groupModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveGroup()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Source Modal -->
+<div class="modal-overlay" id="sourceModal">
+  <div class="modal">
+    <h3>Yeni Kaynak</h3>
+    <div class="form-group">
+      <label>Kaynak Adı</label>
+      <input type="text" id="sourceNameInput" placeholder="Kaynak adı...">
+    </div>
+    <div class="form-group">
+      <label>M3U URL</label>
+      <input type="text" id="sourceUrlInput" placeholder="https://...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('sourceModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveSource()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Channel Edit Modal -->
+<div class="modal-overlay" id="channelModal">
+  <div class="modal">
+    <h3>Kanalı Düzenle</h3>
+    <input type="hidden" id="editChannelId">
+    <div class="form-group">
+      <label>Kanal Adı</label>
+      <input type="text" id="editChannelName">
+    </div>
+    <div class="form-group">
+      <label>Stream URL</label>
+      <input type="text" id="editChannelUrl">
+    </div>
+    <div class="form-group">
+      <label>Grup</label>
+      <select id="editChannelGroup"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteChannel()">Sil</button>
+      <button class="btn" onclick="closeModal('channelModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveChannel()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = '';
+let state = {
+  groups: [],
+  channels: [],
+  sources: [],
+  currentGroupId: null,
+  searchQuery: '',
+  selectMode: false,
+  selected: new Set(),
+  editingGroupId: null,
+};
+
+// --- API helpers ---
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// --- Init ---
+
+async function init() {
+  const url = `${location.protocol}//${location.host}/playlist.m3u`;
+  document.getElementById('playlistUrl').value = url;
+  await Promise.all([loadStats(), loadGroups(), loadSources()]);
+  await loadChannels();
+}
+
+async function loadStats() {
+  const s = await api('/api/stats');
+  document.getElementById('statEnabled').textContent = s.enabled_channels;
+  document.getElementById('statAlive').textContent = s.alive_channels;
+  document.getElementById('statTotal').textContent = s.total_channels;
+}
+
+// --- Groups ---
+
+async function loadGroups() {
+  state.groups = await api('/api/groups');
+  renderGroups();
+  renderGroupSelects();
+}
+
+function renderGroups() {
+  const list = document.getElementById('groupList');
+  list.innerHTML = state.groups.map(g => `
+    <div class="group-item ${state.currentGroupId === g.id ? 'active' : ''}"
+         onclick="selectGroup(${g.id})" data-id="${g.id}">
+      <span class="drag-handle">⠿</span>
+      <span>${g.name}</span>
+      <span class="count">${g.channel_count}</span>
+      <button class="btn-icon" onclick="event.stopPropagation(); editGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')" title="Düzenle">✎</button>
+      <button class="btn-icon" onclick="event.stopPropagation(); removeGroup(${g.id})" title="Sil">×</button>
+    </div>
+  `).join('');
+
+  new Sortable(list, {
+    animation: 150,
+    handle: '.drag-handle',
+    onEnd: async () => {
+      const order = [...list.querySelectorAll('.group-item')].map(el => +el.dataset.id);
+      await api('/api/groups/reorder', { method: 'PUT', body: { order } });
+      await loadGroups();
+    }
+  });
+}
+
+function renderGroupSelects() {
+  const selects = [document.getElementById('editChannelGroup'), document.getElementById('bulkMoveGroup')];
+  selects.forEach(sel => {
+    if (!sel) return;
+    const isMove = sel.id === 'bulkMoveGroup';
+    sel.innerHTML = (isMove ? '<option value="">Gruba Taşı...</option>' : '') +
+      state.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  });
+}
+
+function selectGroup(id) {
+  state.currentGroupId = id;
+  document.getElementById('currentGroupName').textContent =
+    id === null ? 'Tüm Kanallar' : state.groups.find(g => g.id === id)?.name || '';
+  renderGroups();
+  loadChannels();
+}
+
+function showGroupModal(id, name) {
+  state.editingGroupId = id || null;
+  document.getElementById('groupModalTitle').textContent = id ? 'Grubu Düzenle' : 'Yeni Grup';
+  document.getElementById('groupNameInput').value = name || '';
+  document.getElementById('groupModal').classList.add('show');
+  document.getElementById('groupNameInput').focus();
+}
+
+function editGroup(id, name) { showGroupModal(id, name); }
+
+async function saveGroup() {
+  const name = document.getElementById('groupNameInput').value.trim();
+  if (!name) return;
+  if (state.editingGroupId) {
+    await api(`/api/groups/${state.editingGroupId}`, { method: 'PUT', body: { name } });
+  } else {
+    await api('/api/groups', { method: 'POST', body: { name } });
+  }
+  closeModal('groupModal');
+  await loadGroups();
+  toast(state.editingGroupId ? 'Grup güncellendi' : 'Grup eklendi', 'success');
+}
+
+async function removeGroup(id) {
+  if (!confirm('Bu grubu silmek istediğinden emin misin? Kanallar "Diğer" grubuna taşınacak.')) return;
+  await api(`/api/groups/${id}`, { method: 'DELETE' });
+  if (state.currentGroupId === id) state.currentGroupId = null;
+  await loadGroups();
+  await loadChannels();
+  toast('Grup silindi', 'success');
+}
+
+// --- Sources ---
+
+async function loadSources() {
+  state.sources = await api('/api/sources');
+  renderSources();
+}
+
+function renderSources() {
+  const list = document.getElementById('sourceList');
+  list.innerHTML = state.sources.map(s => `
+    <div class="source-item">
+      <div class="source-header">
+        <span class="source-name">${s.name}</span>
+        <label class="toggle">
+          <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSource(${s.id}, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="source-url">${s.url}</div>
+      <div class="source-synced">${s.last_synced ? 'Son senkronizasyon: ' + new Date(s.last_synced).toLocaleString('tr-TR') : 'Henüz senkronize edilmedi'}</div>
+      <div class="source-actions">
+        <button class="btn btn-sm" onclick="syncSource(${s.id})">Senkronize Et</button>
+        <button class="btn btn-sm btn-danger" onclick="removeSource(${s.id})">Sil</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showSourceModal() {
+  document.getElementById('sourceNameInput').value = '';
+  document.getElementById('sourceUrlInput').value = '';
+  document.getElementById('sourceModal').classList.add('show');
+  document.getElementById('sourceNameInput').focus();
+}
+
+async function saveSource() {
+  const name = document.getElementById('sourceNameInput').value.trim();
+  const url = document.getElementById('sourceUrlInput').value.trim();
+  if (!name || !url) return;
+  await api('/api/sources', { method: 'POST', body: { name, url } });
+  closeModal('sourceModal');
+  await loadSources();
+  toast('Kaynak eklendi', 'success');
+}
+
+async function toggleSource(id, enabled) {
+  await api(`/api/sources/${id}`, { method: 'PUT', body: { enabled } });
+  toast(enabled ? 'Kaynak aktif' : 'Kaynak pasif', 'info');
+}
+
+async function removeSource(id) {
+  if (!confirm('Bu kaynağı ve tüm kanallarını silmek istediğinden emin misin?')) return;
+  await api(`/api/sources/${id}`, { method: 'DELETE' });
+  await Promise.all([loadSources(), loadChannels(), loadStats()]);
+  toast('Kaynak silindi', 'success');
+}
+
+async function syncSource(id) {
+  toast('Senkronizasyon başladı...', 'info');
+  const result = await api(`/api/sources/${id}/sync`, { method: 'POST' });
+  await Promise.all([loadSources(), loadChannels(), loadGroups(), loadStats()]);
+  if (result.error) {
+    toast('Hata: ' + result.error, 'error');
+  } else {
+    toast(`${result.added} yeni, ${result.updated} güncellenen kanal`, 'success');
+  }
+}
+
+async function syncAll() {
+  toast('Tüm kaynaklar senkronize ediliyor...', 'info');
+  const results = await api('/api/sync', { method: 'POST' });
+  await Promise.all([loadSources(), loadChannels(), loadGroups(), loadStats()]);
+  const total = results.reduce((a, r) => ({ added: a.added + (r.added || 0), updated: a.updated + (r.updated || 0) }), { added: 0, updated: 0 });
+  toast(`${total.added} yeni, ${total.updated} güncellenen kanal`, 'success');
+}
+
+// --- Channels ---
+
+async function loadChannels() {
+  let path = '/api/channels?';
+  if (state.currentGroupId) path += `group_id=${state.currentGroupId}&`;
+  if (state.searchQuery) path += `search=${encodeURIComponent(state.searchQuery)}&`;
+  state.channels = await api(path);
+  renderChannels();
+}
+
+function renderChannels() {
+  const list = document.getElementById('channelList');
+  if (state.channels.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📺</div>
+      <div>Kanal bulunamadı</div>
+      <div style="font-size:12px">Kaynakları senkronize ederek kanal ekleyebilirsin</div></div>`;
+    return;
+  }
+
+  list.innerHTML = state.channels.map(ch => `
+    <div class="channel-item ${ch.enabled ? '' : 'disabled'}" data-id="${ch.id}">
+      ${state.selectMode ? `<input type="checkbox" class="ch-select" data-id="${ch.id}"
+        ${state.selected.has(ch.id) ? 'checked' : ''} onchange="onSelectChannel(${ch.id}, this.checked)">` : ''}
+      <span class="drag-handle">⠿</span>
+      ${ch.tvg_logo ? `<img class="ch-logo" src="${ch.tvg_logo}" onerror="this.style.display='none'" alt="">` :
+        `<div class="ch-logo" style="display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text2)">TV</div>`}
+      <div class="ch-info">
+        <div class="ch-name">${ch.display_name}</div>
+        <div class="ch-meta">${ch.group_name || ''} · ${ch.source_name || ''} ${ch.tvg_id ? '· ' + ch.tvg_id : ''}</div>
+      </div>
+      <div class="ch-status ${ch.last_checked ? (ch.is_alive ? 'alive' : 'dead') : 'unknown'}"
+           title="${ch.last_checked ? (ch.is_alive ? 'Canlı' : 'Ölü') : 'Kontrol edilmedi'}"></div>
+      <label class="toggle">
+        <input type="checkbox" ${ch.enabled ? 'checked' : ''} onchange="toggleChannel(${ch.id}, this.checked)">
+        <span class="slider"></span>
+      </label>
+      <button class="btn-icon" onclick="editChannel(${ch.id})" title="Düzenle">✎</button>
+    </div>
+  `).join('');
+
+  if (state.currentGroupId && !state.searchQuery) {
+    new Sortable(list, {
+      animation: 150,
+      handle: '.drag-handle',
+      onEnd: async () => {
+        const order = [...list.querySelectorAll('.channel-item')].map(el => +el.dataset.id);
+        await api('/api/channels/reorder', { method: 'PUT', body: { group_id: state.currentGroupId, order } });
+      }
+    });
+  }
+}
+
+async function toggleChannel(id, enabled) {
+  await api(`/api/channels/${id}`, { method: 'PUT', body: { enabled } });
+  const ch = state.channels.find(c => c.id === id);
+  if (ch) ch.enabled = enabled ? 1 : 0;
+  await loadStats();
+}
+
+function editChannel(id) {
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  document.getElementById('editChannelId').value = id;
+  document.getElementById('editChannelName').value = ch.display_name;
+  document.getElementById('editChannelUrl').value = ch.stream_url;
+  document.getElementById('editChannelGroup').value = ch.group_id;
+  document.getElementById('channelModal').classList.add('show');
+}
+
+async function saveChannel() {
+  const id = document.getElementById('editChannelId').value;
+  const display_name = document.getElementById('editChannelName').value.trim();
+  const stream_url = document.getElementById('editChannelUrl').value.trim();
+  const group_id = +document.getElementById('editChannelGroup').value;
+  await api(`/api/channels/${id}`, { method: 'PUT', body: { display_name, stream_url, group_id } });
+  closeModal('channelModal');
+  await Promise.all([loadChannels(), loadGroups(), loadStats()]);
+  toast('Kanal güncellendi', 'success');
+}
+
+async function deleteChannel() {
+  const id = document.getElementById('editChannelId').value;
+  if (!confirm('Bu kanalı silmek istediğinden emin misin?')) return;
+  await api(`/api/channels/${id}`, { method: 'DELETE' });
+  closeModal('channelModal');
+  await Promise.all([loadChannels(), loadGroups(), loadStats()]);
+  toast('Kanal silindi', 'success');
+}
+
+// --- Select mode ---
+
+function toggleSelectMode() {
+  state.selectMode = !state.selectMode;
+  state.selected.clear();
+  document.getElementById('selectBar').style.display = state.selectMode ? 'flex' : 'none';
+  renderChannels();
+  updateSelectedCount();
+}
+
+function onSelectChannel(id, checked) {
+  checked ? state.selected.add(id) : state.selected.delete(id);
+  updateSelectedCount();
+}
+
+function onSelectAll() {
+  const all = document.getElementById('selectAll').checked;
+  state.channels.forEach(ch => all ? state.selected.add(ch.id) : state.selected.delete(ch.id));
+  renderChannels();
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  document.getElementById('selectedCount').textContent = state.selected.size;
+}
+
+async function bulkEnable(enabled) {
+  if (state.selected.size === 0) return;
+  await api('/api/channels/bulk-toggle', { method: 'PUT', body: { channel_ids: [...state.selected], enabled } });
+  await Promise.all([loadChannels(), loadStats()]);
+  toast(`${state.selected.size} kanal ${enabled ? 'aktif' : 'pasif'} edildi`, 'success');
+  state.selected.clear();
+  updateSelectedCount();
+}
+
+async function bulkMove() {
+  const groupId = +document.getElementById('bulkMoveGroup').value;
+  if (!groupId || state.selected.size === 0) return;
+  await api('/api/channels/move', { method: 'PUT', body: { channel_ids: [...state.selected], group_id: groupId } });
+  await Promise.all([loadChannels(), loadGroups()]);
+  toast(`${state.selected.size} kanal taşındı`, 'success');
+  state.selected.clear();
+  updateSelectedCount();
+}
+
+// --- Search ---
+
+let searchTimeout;
+function onSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    state.searchQuery = document.getElementById('searchBox').value.trim();
+    loadChannels();
+  }, 300);
+}
+
+// --- Stream check ---
+
+async function checkStreams() {
+  toast('Stream canlılık kontrolü başladı... Bu biraz sürebilir.', 'info');
+  await api('/api/check-streams', { method: 'POST' });
+  await Promise.all([loadChannels(), loadStats()]);
+  toast('Canlılık kontrolü tamamlandı', 'success');
+}
+
+// --- Tabs ---
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('groupsTab').style.display = tab === 'groups' ? '' : 'none';
+  document.getElementById('sourcesTab').style.display = tab === 'sources' ? '' : 'none';
+}
+
+// --- Modal ---
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
+});
+
+// --- Copy URL ---
+
+function copyUrl() {
+  const input = document.getElementById('playlistUrl');
+  navigator.clipboard.writeText(input.value);
+  toast('Playlist URL kopyalandı!', 'success');
+}
+
+// --- Start ---
+
+init();
+</script>
+</body>
+</html>

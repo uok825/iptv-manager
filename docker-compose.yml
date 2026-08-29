@@ -1,0 +1,12 @@
+services:
+  iptv-manager:
+    build: .
+    container_name: iptv-manager
+    ports:
+      - "8000:8000"
+    volumes:
+      - iptv-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  iptv-data:
