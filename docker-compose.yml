@@ -3,7 +3,7 @@ services:
     build: .
     container_name: iptv-manager
     ports:
-      - "8000:8000"
+      - "${PORT:-7345}:7345"
     volumes:
       - iptv-data:/app/data
     environment:
