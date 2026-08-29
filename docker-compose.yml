@@ -6,6 +6,9 @@ services:
       - "8000:8000"
     volumes:
       - iptv-data:/app/data
+    environment:
+      - PUBLIC_URL=${PUBLIC_URL:-}
+      - SYNC_INTERVAL_DAYS=${SYNC_INTERVAL_DAYS:-7}
     restart: unless-stopped
 
 volumes:

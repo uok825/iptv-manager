@@ -626,8 +626,9 @@ function toast(msg, type = 'info') {
 // --- Init ---
 
 async function init() {
-  const url = `${location.protocol}//${location.host}/playlist.m3u`;
-  document.getElementById('playlistUrl').value = url;
+  const config = await api('/api/config');
+  const base = config.public_url || `${location.protocol}//${location.host}`;
+  document.getElementById('playlistUrl').value = `${base}/playlist.m3u`;
   await Promise.all([loadStats(), loadGroups(), loadSources()]);
   await loadChannels();
 }

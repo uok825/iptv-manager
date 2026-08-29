@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import PlainTextResponse, FileResponse
@@ -9,6 +11,9 @@ from .database import init_db, get_db
 from .m3u_parser import generate_m3u
 from .sync import sync_source, sync_all_sources, check_all_streams
 
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
+SYNC_INTERVAL_DAYS = int(os.environ.get("SYNC_INTERVAL_DAYS", "7"))
+
 app = FastAPI(title="IPTV Playlist Manager")
 scheduler = AsyncIOScheduler()
 
@@ -16,7 +21,7 @@ scheduler = AsyncIOScheduler()
 @app.on_event("startup")
 async def startup():
     init_db()
-    scheduler.add_job(sync_all_sources, "interval", days=7, id="weekly_sync")
+    scheduler.add_job(sync_all_sources, "interval", days=SYNC_INTERVAL_DAYS, id="weekly_sync")
     scheduler.start()
 
 
@@ -314,6 +319,13 @@ async def get_stats():
         "total_sources": sources,
         "total_groups": groups,
     }
+
+
+# --- Config (public URL for frontend) ---
+
+@app.get("/api/config")
+async def get_config():
+    return {"public_url": PUBLIC_URL}
 
 
 # --- Serve frontend ---
