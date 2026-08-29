@@ -232,46 +232,6 @@ async def list_channels(
     return [dict(r) for r in rows]
 
 
-@app.put("/api/channels/{channel_id}")
-async def update_channel(channel_id: int, data: ChannelUpdate):
-    with get_db() as db:
-        if data.display_name is not None:
-            db.execute("UPDATE channels SET display_name = ?, updated_at = datetime('now') WHERE id = ?",
-                       (data.display_name, channel_id))
-        if data.group_id is not None:
-            max_order = db.execute(
-                "SELECT COALESCE(MAX(sort_order), -1) FROM channels WHERE group_id = ?",
-                (data.group_id,)
-            ).fetchone()[0]
-            db.execute("UPDATE channels SET group_id = ?, sort_order = ?, updated_at = datetime('now') WHERE id = ?",
-                       (data.group_id, max_order + 1, channel_id))
-        if data.enabled is not None:
-            db.execute("UPDATE channels SET enabled = ?, updated_at = datetime('now') WHERE id = ?",
-                       (int(data.enabled), channel_id))
-        if data.stream_url is not None:
-            db.execute("UPDATE channels SET stream_url = ?, updated_at = datetime('now') WHERE id = ?",
-                       (data.stream_url, channel_id))
-    return {"ok": True}
-
-
-@app.delete("/api/channels/{channel_id}")
-async def delete_channel(channel_id: int):
-    with get_db() as db:
-        db.execute("DELETE FROM channels WHERE id = ?", (channel_id,))
-    return {"ok": True}
-
-
-@app.put("/api/channels/reorder")
-async def reorder_channels(data: ChannelReorder):
-    with get_db() as db:
-        for idx, channel_id in enumerate(data.order):
-            db.execute(
-                "UPDATE channels SET sort_order = ?, group_id = ? WHERE id = ?",
-                (idx, data.group_id, channel_id),
-            )
-    return {"ok": True}
-
-
 class ChannelSetPosition(BaseModel):
     channel_id: int
     position: int
@@ -298,6 +258,17 @@ async def set_channel_position(data: ChannelSetPosition):
     return {"ok": True}
 
 
+@app.put("/api/channels/reorder")
+async def reorder_channels(data: ChannelReorder):
+    with get_db() as db:
+        for idx, channel_id in enumerate(data.order):
+            db.execute(
+                "UPDATE channels SET sort_order = ?, group_id = ? WHERE id = ?",
+                (idx, data.group_id, channel_id),
+            )
+    return {"ok": True}
+
+
 @app.put("/api/channels/move")
 async def move_channels(data: ChannelMove):
     with get_db() as db:
@@ -321,6 +292,35 @@ async def bulk_toggle(data: BulkToggle):
                 "UPDATE channels SET enabled = ?, updated_at = datetime('now') WHERE id = ?",
                 (int(data.enabled), ch_id),
             )
+    return {"ok": True}
+
+
+@app.put("/api/channels/{channel_id}")
+async def update_channel(channel_id: int, data: ChannelUpdate):
+    with get_db() as db:
+        if data.display_name is not None:
+            db.execute("UPDATE channels SET display_name = ?, updated_at = datetime('now') WHERE id = ?",
+                       (data.display_name, channel_id))
+        if data.group_id is not None:
+            max_order = db.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) FROM channels WHERE group_id = ?",
+                (data.group_id,)
+            ).fetchone()[0]
+            db.execute("UPDATE channels SET group_id = ?, sort_order = ?, updated_at = datetime('now') WHERE id = ?",
+                       (data.group_id, max_order + 1, channel_id))
+        if data.enabled is not None:
+            db.execute("UPDATE channels SET enabled = ?, updated_at = datetime('now') WHERE id = ?",
+                       (int(data.enabled), channel_id))
+        if data.stream_url is not None:
+            db.execute("UPDATE channels SET stream_url = ?, updated_at = datetime('now') WHERE id = ?",
+                       (data.stream_url, channel_id))
+    return {"ok": True}
+
+
+@app.delete("/api/channels/{channel_id}")
+async def delete_channel(channel_id: int):
+    with get_db() as db:
+        db.execute("DELETE FROM channels WHERE id = ?", (channel_id,))
     return {"ok": True}
 
 
