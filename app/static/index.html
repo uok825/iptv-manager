@@ -556,6 +556,10 @@ body {
       <label>M3U URL</label>
       <input type="text" id="sourceUrlInput" placeholder="https://...">
     </div>
+    <div class="form-group">
+      <label>Grup Filtresi (boş = tümü, ör: "Turkey")</label>
+      <input type="text" id="sourceFilterInput" placeholder="Boş bırakırsan tüm kanallar alınır">
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('sourceModal')">İptal</button>
       <button class="btn btn-primary" onclick="saveSource()">Kaydet</button>
@@ -741,6 +745,7 @@ function renderSources() {
         </label>
       </div>
       <div class="source-url">${s.url}</div>
+      ${s.filter_group ? `<div class="source-synced" style="color:var(--accent2)">Filtre: ${s.filter_group}</div>` : ''}
       <div class="source-synced">${s.last_synced ? 'Son senkronizasyon: ' + new Date(s.last_synced).toLocaleString('tr-TR') : 'Henüz senkronize edilmedi'}</div>
       <div class="source-actions">
         <button class="btn btn-sm" onclick="syncSource(${s.id})">Senkronize Et</button>
@@ -753,6 +758,7 @@ function renderSources() {
 function showSourceModal() {
   document.getElementById('sourceNameInput').value = '';
   document.getElementById('sourceUrlInput').value = '';
+  document.getElementById('sourceFilterInput').value = '';
   document.getElementById('sourceModal').classList.add('show');
   document.getElementById('sourceNameInput').focus();
 }
@@ -760,8 +766,9 @@ function showSourceModal() {
 async function saveSource() {
   const name = document.getElementById('sourceNameInput').value.trim();
   const url = document.getElementById('sourceUrlInput').value.trim();
+  const filter_group = document.getElementById('sourceFilterInput').value.trim();
   if (!name || !url) return;
-  await api('/api/sources', { method: 'POST', body: { name, url } });
+  await api('/api/sources', { method: 'POST', body: { name, url, filter_group } });
   closeModal('sourceModal');
   await loadSources();
   toast('Kaynak eklendi', 'success');

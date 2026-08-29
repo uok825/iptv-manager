@@ -57,16 +57,23 @@ async def sync_source(source_id: int) -> dict:
         if not source:
             return {"error": "Source not found"}
 
+    filter_group = source["filter_group"] or ""
+
     content = await fetch_m3u(source["url"])
     parsed = parse_m3u(content)
 
     added = 0
     updated = 0
+    skipped = 0
     with get_db() as db:
         other_group_id = find_or_create_group(db, "Diğer")
 
         for ch in parsed:
             if not ch.url:
+                continue
+
+            if filter_group and ch.group_title.lower() != filter_group.lower():
+                skipped += 1
                 continue
 
             existing = None
@@ -119,7 +126,7 @@ async def sync_source(source_id: int) -> dict:
             (source_id,),
         )
 
-    return {"added": added, "updated": updated, "total_parsed": len(parsed)}
+    return {"added": added, "updated": updated, "skipped": skipped, "total_parsed": len(parsed)}
 
 
 async def sync_all_sources() -> list[dict]:

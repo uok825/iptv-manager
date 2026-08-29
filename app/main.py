@@ -46,11 +46,13 @@ async def get_playlist():
 class SourceCreate(BaseModel):
     name: str
     url: str
+    filter_group: str = ""
 
 class SourceUpdate(BaseModel):
     name: str | None = None
     url: str | None = None
     enabled: bool | None = None
+    filter_group: str | None = None
 
 
 @app.get("/api/sources")
@@ -65,8 +67,8 @@ async def create_source(source: SourceCreate):
     with get_db() as db:
         try:
             cursor = db.execute(
-                "INSERT INTO sources (name, url) VALUES (?, ?)",
-                (source.name, source.url),
+                "INSERT INTO sources (name, url, filter_group) VALUES (?, ?, ?)",
+                (source.name, source.url, source.filter_group),
             )
             return {"id": cursor.lastrowid}
         except Exception:
@@ -85,6 +87,8 @@ async def update_source(source_id: int, source: SourceUpdate):
             db.execute("UPDATE sources SET url = ? WHERE id = ?", (source.url, source_id))
         if source.enabled is not None:
             db.execute("UPDATE sources SET enabled = ? WHERE id = ?", (int(source.enabled), source_id))
+        if source.filter_group is not None:
+            db.execute("UPDATE sources SET filter_group = ? WHERE id = ?", (source.filter_group, source_id))
     return {"ok": True}
 
 

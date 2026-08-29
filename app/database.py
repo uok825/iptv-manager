@@ -36,6 +36,7 @@ def init_db():
                 name TEXT NOT NULL,
                 url TEXT NOT NULL UNIQUE,
                 enabled INTEGER DEFAULT 1,
+                filter_group TEXT DEFAULT '',
                 last_synced TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             );
@@ -68,6 +69,10 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_channels_source_id ON channels(source_id);
         """)
 
+        cols = [r[1] for r in db.execute("PRAGMA table_info(sources)").fetchall()]
+        if "filter_group" not in cols:
+            db.execute("ALTER TABLE sources ADD COLUMN filter_group TEXT DEFAULT ''")
+
         existing = db.execute("SELECT COUNT(*) FROM groups").fetchone()[0]
         if existing == 0:
             default_groups = [
@@ -89,11 +94,10 @@ def init_db():
         existing_sources = db.execute("SELECT COUNT(*) FROM sources").fetchone()[0]
         if existing_sources == 0:
             default_sources = [
-                ("iptv-org Türkiye", "https://iptv-org.github.io/iptv/countries/tr.m3u"),
-                ("iptv-org Türkçe", "https://iptv-org.github.io/iptv/languages/tur.m3u"),
-                ("Free-TV", "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"),
+                ("iptv-org Türkiye", "https://iptv-org.github.io/iptv/countries/tr.m3u", ""),
+                ("iptv-org Türkçe", "https://iptv-org.github.io/iptv/languages/tur.m3u", "Turkey"),
             ]
             db.executemany(
-                "INSERT INTO sources (name, url) VALUES (?, ?)",
+                "INSERT INTO sources (name, url, filter_group) VALUES (?, ?, ?)",
                 default_sources,
             )
