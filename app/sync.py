@@ -162,6 +162,6 @@ async def check_all_streams():
         alive = await check_stream(ch["stream_url"])
         with get_db() as db:
             db.execute(
-                "UPDATE channels SET is_alive = ?, last_checked = datetime('now') WHERE id = ?",
-                (1 if alive else 0, ch["id"]),
+                "UPDATE channels SET is_alive = ?, enabled = CASE WHEN ? THEN enabled ELSE 0 END, last_checked = datetime('now') WHERE id = ?",
+                (1 if alive else 0, 1 if alive else 0, ch["id"]),
             )
