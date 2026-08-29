@@ -79,14 +79,14 @@ async def sync_source(source_id: int) -> dict:
             existing = None
             if ch.tvg_id:
                 existing = db.execute(
-                    "SELECT * FROM channels WHERE tvg_id = ? AND source_id = ?",
-                    (ch.tvg_id, source_id),
+                    "SELECT * FROM channels WHERE tvg_id = ?",
+                    (ch.tvg_id,),
                 ).fetchone()
 
             if not existing and ch.display_name:
                 existing = db.execute(
-                    "SELECT * FROM channels WHERE display_name = ? AND source_id = ?",
-                    (ch.display_name, source_id),
+                    "SELECT * FROM channels WHERE display_name = ?",
+                    (ch.display_name,),
                 ).fetchone()
 
             if existing:

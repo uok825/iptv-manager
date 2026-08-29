@@ -385,6 +385,23 @@ body {
   margin-top: 16px;
 }
 
+.ch-position {
+  width: 40px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-align: center;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ch-position:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
 /* Toast */
 .toast-container {
   position: fixed;
@@ -824,10 +841,15 @@ function renderChannels() {
     return;
   }
 
-  list.innerHTML = state.channels.map(ch => `
+  const groupChannels = state.currentGroupId ? state.channels : [];
+  list.innerHTML = state.channels.map((ch, idx) => `
     <div class="channel-item ${ch.enabled ? '' : 'disabled'}" data-id="${ch.id}">
       ${state.selectMode ? `<input type="checkbox" class="ch-select" data-id="${ch.id}"
         ${state.selected.has(ch.id) ? 'checked' : ''} onchange="onSelectChannel(${ch.id}, this.checked)">` : ''}
+      <input type="text" class="ch-position" value="${idx + 1}" data-id="${ch.id}"
+        onkeydown="if(event.key==='Enter'){setPosition(${ch.id}, this.value); this.blur();}"
+        onfocus="this.select()"
+        title="Sıra numarası yaz ve Enter'a bas">
       <span class="drag-handle">⠿</span>
       ${ch.tvg_logo ? `<img class="ch-logo" src="${ch.tvg_logo}" onerror="this.style.display='none'" alt="">` :
         `<div class="ch-logo" style="display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text2)">TV</div>`}
@@ -862,6 +884,16 @@ async function toggleChannel(id, enabled) {
   const ch = state.channels.find(c => c.id === id);
   if (ch) ch.enabled = enabled ? 1 : 0;
   await loadStats();
+}
+
+async function setPosition(channelId, value) {
+  const pos = parseInt(value, 10);
+  if (isNaN(pos) || pos < 1) return;
+  await api('/api/channels/set-position', {
+    method: 'PUT',
+    body: { channel_id: channelId, position: pos - 1 }
+  });
+  await loadChannels();
 }
 
 function editChannel(id) {

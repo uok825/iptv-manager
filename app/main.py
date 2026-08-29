@@ -272,6 +272,32 @@ async def reorder_channels(data: ChannelReorder):
     return {"ok": True}
 
 
+class ChannelSetPosition(BaseModel):
+    channel_id: int
+    position: int
+
+
+@app.put("/api/channels/set-position")
+async def set_channel_position(data: ChannelSetPosition):
+    with get_db() as db:
+        channel = db.execute("SELECT * FROM channels WHERE id = ?", (data.channel_id,)).fetchone()
+        if not channel:
+            raise HTTPException(404)
+        group_id = channel["group_id"]
+        siblings = db.execute(
+            "SELECT id FROM channels WHERE group_id = ? ORDER BY sort_order",
+            (group_id,),
+        ).fetchall()
+        ids = [r["id"] for r in siblings]
+        if data.channel_id in ids:
+            ids.remove(data.channel_id)
+        pos = max(0, min(data.position, len(ids)))
+        ids.insert(pos, data.channel_id)
+        for idx, cid in enumerate(ids):
+            db.execute("UPDATE channels SET sort_order = ? WHERE id = ?", (idx, cid))
+    return {"ok": True}
+
+
 @app.put("/api/channels/move")
 async def move_channels(data: ChannelMove):
     with get_db() as db:
