@@ -32,6 +32,13 @@ def map_group_name(raw: str) -> str:
     return raw
 
 
+def normalize_name(name: str) -> str:
+    import re
+    name = re.sub(r'\s*\([\d]+p\)', '', name)
+    name = re.sub(r'\s*\[.*?\]', '', name)
+    return name.strip().lower()
+
+
 async def fetch_m3u(url: str) -> str:
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
         resp = await client.get(url)
@@ -88,6 +95,14 @@ async def sync_source(source_id: int) -> dict:
                     "SELECT * FROM channels WHERE display_name = ?",
                     (ch.display_name,),
                 ).fetchone()
+
+            if not existing and ch.display_name:
+                norm = normalize_name(ch.display_name)
+                all_channels = db.execute("SELECT * FROM channels").fetchall()
+                for row in all_channels:
+                    if normalize_name(row["display_name"]) == norm:
+                        existing = row
+                        break
 
             if existing:
                 if existing["stream_url"] != ch.url:
