@@ -96,6 +96,7 @@ def init_db():
             default_sources = [
                 ("iptv-org Türkiye", "https://iptv-org.github.io/iptv/countries/tr.m3u", ""),
                 ("iptv-org Türkçe", "https://iptv-org.github.io/iptv/languages/tur.m3u", "Turkey"),
+                ("ByteFix TR", "https://gist.githubusercontent.com/ByteFixRepairs/194e9e3a08075befa1703f02d4af82ad/raw/ByteFixRepairsTurkIPTV.m3u", ""),
             ]
             db.executemany(
                 "INSERT INTO sources (name, url, filter_group) VALUES (?, ?, ?)",
