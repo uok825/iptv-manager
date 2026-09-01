@@ -56,8 +56,11 @@ def parse_m3u(content: str) -> list[M3UChannel]:
     return channels
 
 
-def generate_m3u(channels: list[dict]) -> str:
-    lines = ["#EXTM3U"]
+def generate_m3u(channels: list[dict], epg_url: str = "") -> str:
+    header = "#EXTM3U"
+    if epg_url:
+        header += f' url-tvg="{epg_url}"'
+    lines = [header]
     for ch in channels:
         attrs = []
         if ch.get("tvg_id"):

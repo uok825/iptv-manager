@@ -8,6 +8,7 @@ services:
       - iptv-data:/app/data
     environment:
       - PUBLIC_URL=${PUBLIC_URL:-}
+      - EPG_URL=${EPG_URL:-https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz}
       - SYNC_INTERVAL_DAYS=${SYNC_INTERVAL_DAYS:-7}
     restart: unless-stopped
 

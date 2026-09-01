@@ -12,6 +12,7 @@ from .m3u_parser import generate_m3u
 from .sync import sync_source, sync_all_sources, check_all_streams
 
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
+EPG_URL = os.environ.get("EPG_URL", "https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz")
 SYNC_INTERVAL_DAYS = int(os.environ.get("SYNC_INTERVAL_DAYS", "7"))
 
 app = FastAPI(title="IPTV Playlist Manager")
@@ -38,7 +39,7 @@ async def get_playlist():
             ORDER BY g.sort_order, c.sort_order
         """).fetchall()
     channels = [dict(r) for r in rows]
-    return generate_m3u(channels)
+    return generate_m3u(channels, epg_url=EPG_URL)
 
 
 # --- Sources ---
@@ -355,7 +356,7 @@ async def get_stats():
 
 @app.get("/api/config")
 async def get_config():
-    return {"public_url": PUBLIC_URL}
+    return {"public_url": PUBLIC_URL, "epg_url": EPG_URL}
 
 
 # --- Serve frontend ---
