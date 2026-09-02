@@ -168,6 +168,15 @@ async def repair_logos() -> int:
             content = await fetch_m3u(source["url"])
             parsed = parse_m3u(content)
             for ch in parsed:
+                if ch.tvg_logo and ch.tvg_logo.startswith("https://i.imgur.com"):
+                    if ch.tvg_id:
+                        logo_map[ch.tvg_id] = ch.tvg_logo
+                    norm = normalize_name(ch.display_name)
+                    if norm:
+                        logo_map[norm] = ch.tvg_logo
+            for ch in parsed:
+                if ch.tvg_logo and ch.tvg_logo.startswith("https://i.imgur.com"):
+                    continue
                 if ch.tvg_logo:
                     if ch.tvg_id and ch.tvg_id not in logo_map:
                         logo_map[ch.tvg_id] = ch.tvg_logo
@@ -180,7 +189,7 @@ async def repair_logos() -> int:
     repaired = 0
     with get_db() as db:
         channels = db.execute(
-            "SELECT id, tvg_id, display_name, tvg_logo FROM channels WHERE tvg_logo IS NULL OR tvg_logo = ''"
+            "SELECT id, tvg_id, display_name, tvg_logo FROM channels"
         ).fetchall()
         for ch in channels:
             logo = None
@@ -188,7 +197,7 @@ async def repair_logos() -> int:
                 logo = logo_map.get(ch["tvg_id"])
             if not logo:
                 logo = logo_map.get(normalize_name(ch["display_name"]))
-            if logo:
+            if logo and logo != ch["tvg_logo"]:
                 db.execute("UPDATE channels SET tvg_logo = ? WHERE id = ?", (logo, ch["id"]))
                 repaired += 1
     return repaired

@@ -205,6 +205,29 @@ class BulkToggle(BaseModel):
     enabled: bool
 
 
+class ChannelCreate(BaseModel):
+    display_name: str
+    stream_url: str
+    group_id: int
+    tvg_id: str = ""
+    tvg_logo: str = ""
+
+
+@app.post("/api/channels")
+async def create_channel(data: ChannelCreate):
+    with get_db() as db:
+        max_order = db.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) FROM channels WHERE group_id = ?",
+            (data.group_id,)
+        ).fetchone()[0]
+        cursor = db.execute(
+            """INSERT INTO channels (display_name, stream_url, group_id, tvg_id, tvg_logo, sort_order)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (data.display_name, data.stream_url, data.group_id, data.tvg_id, data.tvg_logo, max_order + 1),
+        )
+        return {"id": cursor.lastrowid}
+
+
 @app.get("/api/channels")
 async def list_channels(
     group_id: int | None = None,

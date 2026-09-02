@@ -607,6 +607,7 @@ body {
       <h2 id="currentGroupName">Tüm Kanallar</h2>
       <input type="text" class="search-box" placeholder="Kanal ara..." id="searchBox" oninput="onSearch()">
       <button class="btn btn-sm" onclick="toggleSelectMode()">Seç</button>
+      <button class="btn btn-sm" onclick="showAddChannelModal()">+ Kanal Ekle</button>
       <button class="btn btn-sm" onclick="repairLogos()">Logoları Onar</button>
       <button class="btn btn-sm" onclick="checkStreams()">Canlılık Kontrol</button>
       <button class="btn btn-primary btn-sm" onclick="syncAll()">Senkronize Et</button>
@@ -687,6 +688,37 @@ body {
       <button class="btn btn-danger" onclick="deleteChannel()">Sil</button>
       <button class="btn" onclick="closeModal('channelModal')">İptal</button>
       <button class="btn btn-primary" onclick="saveChannel()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Channel Modal -->
+<div class="modal-overlay" id="addChannelModal">
+  <div class="modal">
+    <h3>Yeni Kanal Ekle</h3>
+    <div class="form-group">
+      <label>Kanal Adı</label>
+      <input type="text" id="addChName" placeholder="Örn: CNN Türk">
+    </div>
+    <div class="form-group">
+      <label>Stream URL</label>
+      <input type="text" id="addChUrl" placeholder="https://... veya http://...">
+    </div>
+    <div class="form-group">
+      <label>Grup</label>
+      <select id="addChGroup"></select>
+    </div>
+    <div class="form-group">
+      <label>TVG ID (opsiyonel - EPG eşleştirmesi için)</label>
+      <input type="text" id="addChTvgId" placeholder="Örn: CNNTurk.tr">
+    </div>
+    <div class="form-group">
+      <label>Logo URL (opsiyonel)</label>
+      <input type="text" id="addChLogo" placeholder="https://...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addChannelModal')">İptal</button>
+      <button class="btn btn-primary" onclick="addChannel()">Ekle</button>
     </div>
   </div>
 </div>
@@ -1007,6 +1039,33 @@ async function deleteChannel() {
   closeModal('channelModal');
   await Promise.all([loadChannels(), loadGroups(), loadStats()]);
   toast('Kanal silindi', 'success');
+}
+
+// --- Add channel ---
+
+function showAddChannelModal() {
+  document.getElementById('addChName').value = '';
+  document.getElementById('addChUrl').value = '';
+  document.getElementById('addChTvgId').value = '';
+  document.getElementById('addChLogo').value = '';
+  const sel = document.getElementById('addChGroup');
+  sel.innerHTML = state.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  if (state.currentGroupId) sel.value = state.currentGroupId;
+  document.getElementById('addChannelModal').classList.add('show');
+  document.getElementById('addChName').focus();
+}
+
+async function addChannel() {
+  const display_name = document.getElementById('addChName').value.trim();
+  const stream_url = document.getElementById('addChUrl').value.trim();
+  const group_id = +document.getElementById('addChGroup').value;
+  const tvg_id = document.getElementById('addChTvgId').value.trim();
+  const tvg_logo = document.getElementById('addChLogo').value.trim();
+  if (!display_name || !stream_url) { toast('Kanal adı ve URL gerekli', 'error'); return; }
+  await api('/api/channels', { method: 'POST', body: { display_name, stream_url, group_id, tvg_id, tvg_logo } });
+  closeModal('addChannelModal');
+  await Promise.all([loadChannels(), loadGroups(), loadStats()]);
+  toast('Kanal eklendi', 'success');
 }
 
 // --- Select mode ---
