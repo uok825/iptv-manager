@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .database import init_db, get_db
 from .m3u_parser import generate_m3u
-from .sync import sync_source, sync_all_sources, check_all_streams
+from .sync import sync_source, sync_all_sources, check_all_streams, repair_logos
 
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 EPG_URL = os.environ.get("EPG_URL", "https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz")
@@ -323,6 +323,14 @@ async def delete_channel(channel_id: int):
     with get_db() as db:
         db.execute("DELETE FROM channels WHERE id = ?", (channel_id,))
     return {"ok": True}
+
+
+# --- Logo repair ---
+
+@app.post("/api/repair-logos")
+async def repair_logos_endpoint():
+    repaired = await repair_logos()
+    return {"repaired": repaired}
 
 
 # --- Stream health check ---

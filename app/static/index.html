@@ -607,6 +607,7 @@ body {
       <h2 id="currentGroupName">Tüm Kanallar</h2>
       <input type="text" class="search-box" placeholder="Kanal ara..." id="searchBox" oninput="onSearch()">
       <button class="btn btn-sm" onclick="toggleSelectMode()">Seç</button>
+      <button class="btn btn-sm" onclick="repairLogos()">Logoları Onar</button>
       <button class="btn btn-sm" onclick="checkStreams()">Canlılık Kontrol</button>
       <button class="btn btn-primary btn-sm" onclick="syncAll()">Senkronize Et</button>
     </div>
@@ -1071,6 +1072,15 @@ async function checkStreams() {
   await api('/api/check-streams', { method: 'POST' });
   await Promise.all([loadChannels(), loadStats()]);
   toast('Canlılık kontrolü tamamlandı', 'success');
+}
+
+// --- Logo repair ---
+
+async function repairLogos() {
+  toast('Logolar onarılıyor...', 'info');
+  const result = await api('/api/repair-logos', { method: 'POST' });
+  await loadChannels();
+  toast(`${result.repaired} kanal logosu onarıldı`, 'success');
 }
 
 // --- Tabs ---

@@ -111,7 +111,7 @@ async def sync_source(source_id: int) -> dict:
                         (ch.url, existing["id"]),
                     )
                     updated += 1
-                if ch.tvg_logo and existing["tvg_logo"] != ch.tvg_logo:
+                if ch.tvg_logo and not existing["tvg_logo"]:
                     db.execute(
                         "UPDATE channels SET tvg_logo = ? WHERE id = ?",
                         (ch.tvg_logo, existing["id"]),
@@ -156,6 +156,42 @@ async def sync_all_sources() -> list[dict]:
         except Exception as e:
             results.append({"source": source["name"], "error": str(e)})
     return results
+
+
+async def repair_logos() -> int:
+    with get_db() as db:
+        sources = db.execute("SELECT * FROM sources WHERE enabled = 1").fetchall()
+
+    logo_map = {}
+    for source in sources:
+        try:
+            content = await fetch_m3u(source["url"])
+            parsed = parse_m3u(content)
+            for ch in parsed:
+                if ch.tvg_logo:
+                    if ch.tvg_id and ch.tvg_id not in logo_map:
+                        logo_map[ch.tvg_id] = ch.tvg_logo
+                    norm = normalize_name(ch.display_name)
+                    if norm and norm not in logo_map:
+                        logo_map[norm] = ch.tvg_logo
+        except Exception:
+            continue
+
+    repaired = 0
+    with get_db() as db:
+        channels = db.execute(
+            "SELECT id, tvg_id, display_name, tvg_logo FROM channels WHERE tvg_logo IS NULL OR tvg_logo = ''"
+        ).fetchall()
+        for ch in channels:
+            logo = None
+            if ch["tvg_id"]:
+                logo = logo_map.get(ch["tvg_id"])
+            if not logo:
+                logo = logo_map.get(normalize_name(ch["display_name"]))
+            if logo:
+                db.execute("UPDATE channels SET tvg_logo = ? WHERE id = ?", (logo, ch["id"]))
+                repaired += 1
+    return repaired
 
 
 async def check_stream(url: str) -> bool:
