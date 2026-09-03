@@ -205,11 +205,17 @@ async def repair_logos() -> int:
     return repaired
 
 
+_TR_CHAR_MAP = str.maketrans('İıÇçŞşĞğÖöÜü', 'iiccssggoouü')
+
+
 def normalize_epg(name: str) -> str:
+    import unicodedata
     name = re.sub(r'\s*\([\d]+p\)', '', name)
     name = re.sub(r'\s*\[.*?\]', '', name)
-    name = re.sub(r'\s+', '', name)
-    return name.strip().lower().replace('.', '').replace(' ', '')
+    name = name.translate(_TR_CHAR_MAP)
+    name = unicodedata.normalize('NFKD', name)
+    name = ''.join(c for c in name if not unicodedata.combining(c))
+    return name.strip().lower().replace('.', '').replace(' ', '').replace('-', '')
 
 
 async def match_epg(epg_url: str) -> int:
@@ -232,18 +238,33 @@ async def match_epg(epg_url: str) -> int:
         epg_channels[ch_id] = names
 
     epg_by_norm = {}
+    epg_by_id_norm = {}
     for ch_id, names in epg_channels.items():
         for name in names:
             norm = normalize_epg(name)
             if norm not in epg_by_norm:
                 epg_by_norm[norm] = ch_id
+        id_norm = normalize_epg(ch_id.replace('.tr', ''))
+        if id_norm not in epg_by_id_norm:
+            epg_by_id_norm[id_norm] = ch_id
+
+    def strip_suffixes(s):
+        s = s.replace('hd', '')
+        if s.startswith('tv'):
+            s = s[2:]
+        if s.endswith('tv'):
+            s = s[:-2]
+        return s
 
     epg_by_norm_nohd = {}
-    for ch_id, names in epg_channels.items():
-        for name in names:
-            norm = normalize_epg(name).replace('hd', '')
-            if norm not in epg_by_norm_nohd:
-                epg_by_norm_nohd[norm] = ch_id
+    for norm, ch_id in epg_by_norm.items():
+        key = strip_suffixes(norm)
+        if key not in epg_by_norm_nohd:
+            epg_by_norm_nohd[key] = ch_id
+    for norm, ch_id in epg_by_id_norm.items():
+        key = strip_suffixes(norm)
+        if key not in epg_by_norm_nohd:
+            epg_by_norm_nohd[key] = ch_id
 
     matched = 0
     with get_db() as db:
@@ -257,12 +278,21 @@ async def match_epg(epg_url: str) -> int:
             norm_name = normalize_epg(ch["display_name"])
             best = epg_by_norm.get(norm_name)
             if not best:
-                best = epg_by_norm_nohd.get(norm_name.replace('hd', ''))
+                best = epg_by_id_norm.get(norm_name)
+            if not best:
+                sn = strip_suffixes(norm_name)
+                if len(sn) >= 3:
+                    best = epg_by_norm_nohd.get(sn)
             if not best and ch["tvg_id"]:
-                norm_tvg = normalize_epg(ch["tvg_id"].split('@')[0].replace('.', ' '))
+                tvg_base = ch["tvg_id"].split('@')[0]
+                norm_tvg = normalize_epg(tvg_base.replace('.tr', ''))
                 best = epg_by_norm.get(norm_tvg)
                 if not best:
-                    best = epg_by_norm_nohd.get(norm_tvg.replace('hd', ''))
+                    best = epg_by_id_norm.get(norm_tvg)
+                if not best:
+                    st = strip_suffixes(norm_tvg)
+                    if len(st) >= 3:
+                        best = epg_by_norm_nohd.get(st)
             if best:
                 db.execute(
                     "UPDATE channels SET epg_channel_id = ? WHERE id = ?",
