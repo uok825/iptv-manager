@@ -63,8 +63,9 @@ def generate_m3u(channels: list[dict], epg_url: str = "") -> str:
     lines = [header]
     for ch in channels:
         attrs = []
-        if ch.get("tvg_id"):
-            attrs.append(f'tvg-id="{ch["tvg_id"]}"')
+        epg_id = ch.get("epg_channel_id") or ch.get("tvg_id") or ""
+        if epg_id:
+            attrs.append(f'tvg-id="{epg_id}"')
         if ch.get("tvg_name"):
             attrs.append(f'tvg-name="{ch["tvg_name"]}"')
         if ch.get("tvg_logo"):

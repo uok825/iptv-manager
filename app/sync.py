@@ -1,4 +1,7 @@
 import httpx
+import gzip
+import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from .database import get_db
 from .m3u_parser import parse_m3u
@@ -33,7 +36,6 @@ def map_group_name(raw: str) -> str:
 
 
 def normalize_name(name: str) -> str:
-    import re
     name = re.sub(r'\s*\([\d]+p\)', '', name)
     name = re.sub(r'\s*\[.*?\]', '', name)
     return name.strip().lower()
@@ -201,6 +203,73 @@ async def repair_logos() -> int:
                 db.execute("UPDATE channels SET tvg_logo = ? WHERE id = ?", (logo, ch["id"]))
                 repaired += 1
     return repaired
+
+
+def normalize_epg(name: str) -> str:
+    name = re.sub(r'\s*\([\d]+p\)', '', name)
+    name = re.sub(r'\s*\[.*?\]', '', name)
+    name = re.sub(r'\s+', '', name)
+    return name.strip().lower().replace('.', '').replace(' ', '')
+
+
+async def match_epg(epg_url: str) -> int:
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        resp = await client.get(epg_url)
+        resp.raise_for_status()
+
+    content = resp.content
+    if epg_url.endswith('.gz'):
+        content = gzip.decompress(content)
+
+    root = ET.fromstring(content)
+
+    epg_channels = {}
+    for ch_el in root.findall('channel'):
+        ch_id = ch_el.get('id', '')
+        if not ch_id:
+            continue
+        names = [dn.text for dn in ch_el.findall('display-name') if dn.text]
+        epg_channels[ch_id] = names
+
+    epg_by_norm = {}
+    for ch_id, names in epg_channels.items():
+        for name in names:
+            norm = normalize_epg(name)
+            if norm not in epg_by_norm:
+                epg_by_norm[norm] = ch_id
+
+    epg_by_norm_nohd = {}
+    for ch_id, names in epg_channels.items():
+        for name in names:
+            norm = normalize_epg(name).replace('hd', '')
+            if norm not in epg_by_norm_nohd:
+                epg_by_norm_nohd[norm] = ch_id
+
+    matched = 0
+    with get_db() as db:
+        channels = db.execute(
+            "SELECT id, display_name, tvg_id, epg_channel_id FROM channels"
+        ).fetchall()
+        for ch in channels:
+            if ch["epg_channel_id"]:
+                continue
+            best = None
+            norm_name = normalize_epg(ch["display_name"])
+            best = epg_by_norm.get(norm_name)
+            if not best:
+                best = epg_by_norm_nohd.get(norm_name.replace('hd', ''))
+            if not best and ch["tvg_id"]:
+                norm_tvg = normalize_epg(ch["tvg_id"].split('@')[0].replace('.', ' '))
+                best = epg_by_norm.get(norm_tvg)
+                if not best:
+                    best = epg_by_norm_nohd.get(norm_tvg.replace('hd', ''))
+            if best:
+                db.execute(
+                    "UPDATE channels SET epg_channel_id = ? WHERE id = ?",
+                    (best, ch["id"]),
+                )
+                matched += 1
+    return matched
 
 
 async def check_stream(url: str) -> bool:

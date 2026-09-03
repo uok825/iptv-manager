@@ -609,6 +609,7 @@ body {
       <button class="btn btn-sm" onclick="toggleSelectMode()">Seç</button>
       <button class="btn btn-sm" onclick="showAddChannelModal()">+ Kanal Ekle</button>
       <button class="btn btn-sm" onclick="repairLogos()">Logoları Onar</button>
+      <button class="btn btn-sm" onclick="matchEpg()">EPG Eşleştir</button>
       <button class="btn btn-sm" onclick="checkStreams()">Canlılık Kontrol</button>
       <button class="btn btn-primary btn-sm" onclick="syncAll()">Senkronize Et</button>
     </div>
@@ -683,6 +684,10 @@ body {
     <div class="form-group">
       <label>Grup</label>
       <select id="editChannelGroup"></select>
+    </div>
+    <div class="form-group">
+      <label>EPG Kanal ID (program rehberi eşleştirmesi)</label>
+      <input type="text" id="editChannelEpgId" placeholder="Örn: CNN.TÜRK.HD.tr">
     </div>
     <div class="modal-actions">
       <button class="btn btn-danger" onclick="deleteChannel()">Sil</button>
@@ -970,7 +975,7 @@ function renderChannels() {
         `<div class="ch-logo" style="display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text2)">TV</div>`}
       <div class="ch-info">
         <div class="ch-name">${ch.display_name}</div>
-        <div class="ch-meta">${ch.group_name || ''} · ${ch.source_name || ''} ${ch.tvg_id ? '· ' + ch.tvg_id : ''}</div>
+        <div class="ch-meta">${ch.group_name || ''} · ${ch.source_name || 'Manuel'} ${ch.epg_channel_id ? '· EPG: ' + ch.epg_channel_id : (ch.tvg_id ? '· ' + ch.tvg_id : '')}</div>
       </div>
       <div class="ch-status ${ch.last_checked ? (ch.is_alive ? 'alive' : 'dead') : 'unknown'}"
            title="${ch.last_checked ? (ch.is_alive ? 'Canlı' : 'Ölü') : 'Kontrol edilmedi'}"></div>
@@ -1018,6 +1023,7 @@ function editChannel(id) {
   document.getElementById('editChannelName').value = ch.display_name;
   document.getElementById('editChannelUrl').value = ch.stream_url;
   document.getElementById('editChannelGroup').value = ch.group_id;
+  document.getElementById('editChannelEpgId').value = ch.epg_channel_id || '';
   document.getElementById('channelModal').classList.add('show');
 }
 
@@ -1026,7 +1032,8 @@ async function saveChannel() {
   const display_name = document.getElementById('editChannelName').value.trim();
   const stream_url = document.getElementById('editChannelUrl').value.trim();
   const group_id = +document.getElementById('editChannelGroup').value;
-  await api(`/api/channels/${id}`, { method: 'PUT', body: { display_name, stream_url, group_id } });
+  const epg_channel_id = document.getElementById('editChannelEpgId').value.trim();
+  await api(`/api/channels/${id}`, { method: 'PUT', body: { display_name, stream_url, group_id, epg_channel_id } });
   closeModal('channelModal');
   await Promise.all([loadChannels(), loadGroups(), loadStats()]);
   toast('Kanal güncellendi', 'success');
@@ -1140,6 +1147,13 @@ async function repairLogos() {
   const result = await api('/api/repair-logos', { method: 'POST' });
   await loadChannels();
   toast(`${result.repaired} kanal logosu onarıldı`, 'success');
+}
+
+async function matchEpg() {
+  toast('EPG eşleştirmesi yapılıyor... Bu biraz sürebilir.', 'info');
+  const result = await api('/api/match-epg', { method: 'POST' });
+  await loadChannels();
+  toast(`${result.matched} kanal EPG ile eşleştirildi`, 'success');
 }
 
 // --- Tabs ---

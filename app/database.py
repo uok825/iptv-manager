@@ -73,6 +73,10 @@ def init_db():
         if "filter_group" not in cols:
             db.execute("ALTER TABLE sources ADD COLUMN filter_group TEXT DEFAULT ''")
 
+        ch_cols = [r[1] for r in db.execute("PRAGMA table_info(channels)").fetchall()]
+        if "epg_channel_id" not in ch_cols:
+            db.execute("ALTER TABLE channels ADD COLUMN epg_channel_id TEXT DEFAULT ''")
+
         existing = db.execute("SELECT COUNT(*) FROM groups").fetchone()[0]
         if existing == 0:
             default_groups = [
